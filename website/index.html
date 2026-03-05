@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>STRATUS — Weather Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--ink:#0a1628;--panel:#111e33;--border:rgba(255,255,255,0.07);--amber:#e8a838;--amber2:#f5c842;--sky:#4fc3f7;--text:#d4e4f7;--muted:#6b8cae;--white:#ffffff}
+    html{scroll-behavior:smooth}
+    body{background:var(--ink);color:var(--text);font-family:'DM Sans',sans-serif;font-weight:300;min-height:100vh;overflow-x:hidden}
+    #atmosphere{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.55}
+    .page{position:relative;z-index:1}
+    nav{display:flex;justify-content:space-between;align-items:center;padding:1.4rem 3rem;border-bottom:1px solid var(--border);background:rgba(10,22,40,.88);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100}
+    .nav-brand{display:flex;align-items:baseline;gap:.8rem}
+    .nav-logo{font-family:'DM Serif Display',serif;font-size:1.5rem;color:var(--white);letter-spacing:.06em}
+    .nav-tagline{font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--amber)}
+    .nav-time{font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:var(--muted);letter-spacing:.1em}
+    .search-wrap{padding:3rem 3rem 0;max-width:1300px;margin:0 auto}
+    .search-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.35em;text-transform:uppercase;color:var(--amber);margin-bottom:.8rem;display:block}
+    .search-row{display:flex;gap:.75rem;max-width:560px}
+    .search-input{flex:1;background:var(--panel);border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.85rem;padding:.85rem 1.2rem;outline:none;transition:border-color .3s}
+    .search-input::placeholder{color:var(--muted)}
+    .search-input:focus{border-color:rgba(79,195,247,.4)}
+    .search-btn{background:var(--amber);color:var(--ink);border:none;padding:.85rem 1.6rem;font-family:'IBM Plex Mono',monospace;font-size:.75rem;font-weight:500;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;transition:background .25s}
+    .search-btn:hover{background:var(--amber2)}
+    .main{max-width:1300px;margin:0 auto;padding:2.5rem 3rem 4rem;display:grid;gap:1.5rem}
+    .hero-card{background:var(--panel);border:1px solid var(--border);padding:3rem 3.5rem;display:grid;grid-template-columns:1fr auto;gap:2rem;align-items:center;position:relative;overflow:hidden}
+    .hero-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 80% 50%,rgba(79,195,247,.06),transparent 65%);pointer-events:none}
+    .hero-location{font-family:'IBM Plex Mono',monospace;font-size:.65rem;letter-spacing:.35em;text-transform:uppercase;color:var(--amber);margin-bottom:.6rem}
+    .hero-city{font-family:'DM Serif Display',serif;font-size:clamp(2.5rem,5vw,4.5rem);color:var(--white);line-height:1;margin-bottom:.4rem}
+    .hero-condition{font-family:'DM Serif Display',serif;font-style:italic;font-size:1.2rem;color:var(--sky);margin-bottom:1.5rem}
+    .hero-meta{display:flex;gap:2.5rem;flex-wrap:wrap}
+    .meta-val{font-family:'IBM Plex Mono',monospace;font-size:.85rem;color:var(--text);display:block}
+    .meta-key{font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-top:.2rem;display:block}
+    .hero-temp-block{text-align:right}
+    .hero-temp{font-family:'DM Serif Display',serif;font-size:clamp(5rem,10vw,9rem);color:var(--white);line-height:1}
+    .hero-temp sup{font-size:.35em;vertical-align:super;color:var(--amber)}
+    .hero-feels{font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--muted);margin-top:.4rem;letter-spacing:.1em}
+    .weather-icon{font-size:3rem;margin-bottom:.5rem;display:block;text-align:right}
+    .azure-badge{display:inline-flex;align-items:center;gap:.5rem;font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);padding:.45rem 1rem;border:1px solid var(--border);margin-top:1.5rem}
+    .azure-dot{width:6px;height:6px;border-radius:50%;background:#0078d4;box-shadow:0 0 6px #0078d4}
+    .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border)}
+    .stat-card{background:var(--panel);padding:1.8rem 2rem;position:relative;overflow:hidden;transition:background .3s}
+    .stat-card:hover{background:rgba(17,30,51,.9)}
+    .stat-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--amber),transparent);opacity:0;transition:opacity .3s}
+    .stat-card:hover::after{opacity:1}
+    .stat-icon{font-size:1.4rem;margin-bottom:1rem;display:block}
+    .stat-val{font-family:'DM Serif Display',serif;font-size:2rem;color:var(--white);line-height:1;margin-bottom:.3rem}
+    .stat-unit{font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:var(--amber)}
+    .stat-label{font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.25em;text-transform:uppercase;color:var(--muted);margin-top:.4rem;display:block}
+    .bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+    .panel{background:var(--panel);border:1px solid var(--border);padding:2rem 2.5rem}
+    .panel-title{font-family:'IBM Plex Mono',monospace;font-size:.62rem;letter-spacing:.35em;text-transform:uppercase;color:var(--amber);margin-bottom:1.8rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}
+    .forecast-row{display:flex;justify-content:space-between;align-items:center;padding:.85rem 0;border-bottom:1px solid var(--border)}
+    .forecast-row:last-child{border-bottom:none}
+    .fc-day{font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:var(--muted);width:80px}
+    .fc-icon{font-size:1.2rem}
+    .fc-desc{font-family:'DM Sans',sans-serif;font-size:.85rem;color:var(--text);flex:1;padding:0 1rem}
+    .fc-temps{font-family:'IBM Plex Mono',monospace;font-size:.82rem;text-align:right}
+    .fc-hi{color:var(--white)}
+    .fc-lo{color:var(--muted);margin-left:.5rem}
+    .sun-row{display:flex;justify-content:space-between;align-items:center;padding:1rem 0;border-bottom:1px solid var(--border)}
+    .sun-row:last-child{border-bottom:none}
+    .sun-label{font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--muted);letter-spacing:.1em}
+    .sun-val{font-family:'DM Serif Display',serif;font-size:1.3rem;color:var(--white)}
+    .bar-wrap{height:3px;background:rgba(255,255,255,.06);margin-top:1.2rem}
+    .bar-fill{height:100%;background:linear-gradient(90deg,var(--sky),var(--amber));transition:width 1s ease}
+    .bar-labels{display:flex;justify-content:space-between;margin-top:.5rem}
+    .bar-label{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);letter-spacing:.1em}
+    .state-msg{text-align:center;padding:5rem 2rem;font-family:'IBM Plex Mono',monospace;font-size:.8rem;color:var(--muted);letter-spacing:.1em}
+    .spinner{display:inline-block;width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--amber);border-radius:50%;animation:spin .9s linear infinite;margin-bottom:1rem}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    footer{border-top:1px solid var(--border);padding:2rem 3rem;max-width:1300px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem}
+    .footer-copy,.footer-api{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);letter-spacing:.08em}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    .fade-in{animation:fadeUp .7s ease forwards}
+    .fade-in-2{animation:fadeUp .7s .15s ease forwards;opacity:0}
+    .fade-in-3{animation:fadeUp .7s .3s ease forwards;opacity:0}
+    .fade-in-4{animation:fadeUp .7s .45s ease forwards;opacity:0}
+    @media(max-width:900px){nav{padding:1rem 1.5rem}.search-wrap,.main{padding-left:1.5rem;padding-right:1.5rem}.hero-card{grid-template-columns:1fr;padding:2rem}.hero-temp-block{text-align:left}.weather-icon{text-align:left}.stats-grid{grid-template-columns:repeat(2,1fr)}.bottom-grid{grid-template-columns:1fr}footer{padding:1.5rem}}
+  </style>
+</head>
+<body>
+<canvas id="atmosphere"></canvas>
+<div class="page">
+  <nav>
+    <div class="nav-brand">
+      <span class="nav-logo">Stratus</span>
+      <span class="nav-tagline">Weather Intelligence</span>
+    </div>
+    <span class="nav-time" id="clock">—</span>
+  </nav>
+  <div class="search-wrap">
+    <span class="search-label">▸ Location Search</span>
+    <div class="search-row">
+      <input class="search-input" type="text" id="city-input" placeholder="Enter city name..." autocomplete="off" />
+      <button class="search-btn" onclick="searchCity()">Fetch →</button>
+    </div>
+  </div>
+  <div class="main" id="main-content">
+    <div class="state-msg"><div class="spinner"></div><br/>Detecting your location...</div>
+  </div>
+  <footer>
+    <span class="footer-copy">© 2025 Stratus Weather Intelligence</span>
+    <span class="footer-api">Powered by Open-Meteo API · Nominatim Geocoding · Hosted on Azure Blob Storage</span>
+  </footer>
+</div>
+<script>
+function updateClock(){const n=new Date();const off=-n.getTimezoneOffset();const sign=off>=0?'+':'-';const h=String(Math.floor(Math.abs(off)/60)).padStart(2,'0');document.getElementById('clock').textContent=n.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+`  UTC${sign}${h}`}
+setInterval(updateClock,1000);updateClock();
+
+const canvas=document.getElementById('atmosphere');const ctx=canvas.getContext('2d');
+function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight}
+resize();window.addEventListener('resize',resize);
+const particles=Array.from({length:130},()=>({x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight,len:Math.random()*18+6,speed:Math.random()*1.4+0.4,opacity:Math.random()*0.18+0.04,angle:Math.PI/2+(Math.random()-0.5)*0.3}));
+let wType='clear';
+function drawAtmos(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const g=ctx.createRadialGradient(canvas.width*.72,canvas.height*.18,0,canvas.width*.72,canvas.height*.18,canvas.width*.6);
+  g.addColorStop(0,'rgba(79,195,247,0.08)');g.addColorStop(1,'rgba(10,22,40,0)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{
+    if(wType==='rain'||wType==='drizzle'||wType==='snow'){
+      ctx.save();ctx.globalAlpha=p.opacity;
+      ctx.strokeStyle=wType==='snow'?'#a8d8f0':'#4fc3f7';ctx.lineWidth=wType==='snow'?1.5:0.8;
+      ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+Math.cos(p.angle)*p.len,p.y+Math.sin(p.angle)*p.len);ctx.stroke();ctx.restore();
+      p.y+=p.speed*(wType==='snow'?0.4:1.2);p.x+=Math.cos(p.angle)*p.speed*0.3;
+      if(p.y>canvas.height){p.y=-20;p.x=Math.random()*canvas.width}
+    }else{
+      ctx.save();ctx.globalAlpha=p.opacity*0.35;ctx.fillStyle='#4fc3f7';
+      ctx.beginPath();ctx.arc(p.x,p.y,p.len*0.4,0,Math.PI*2);ctx.fill();ctx.restore();
+      p.y-=p.speed*0.14;p.x+=Math.sin(p.y*0.005)*0.3;
+      if(p.y<-20){p.y=canvas.height+20;p.x=Math.random()*canvas.width}
+    }
+  });
+  requestAnimationFrame(drawAtmos);
+}
+drawAtmos();
+
+const WMO={0:{label:'Clear Sky',icon:'☀️',type:'clear'},1:{label:'Mainly Clear',icon:'🌤️',type:'clear'},2:{label:'Partly Cloudy',icon:'⛅',type:'cloudy'},3:{label:'Overcast',icon:'☁️',type:'cloudy'},45:{label:'Fog',icon:'🌫️',type:'cloudy'},48:{label:'Icy Fog',icon:'🌫️',type:'cloudy'},51:{label:'Light Drizzle',icon:'🌦️',type:'drizzle'},53:{label:'Drizzle',icon:'🌦️',type:'drizzle'},55:{label:'Heavy Drizzle',icon:'🌧️',type:'rain'},61:{label:'Slight Rain',icon:'🌧️',type:'rain'},63:{label:'Moderate Rain',icon:'🌧️',type:'rain'},65:{label:'Heavy Rain',icon:'🌧️',type:'rain'},71:{label:'Slight Snow',icon:'🌨️',type:'snow'},73:{label:'Moderate Snow',icon:'❄️',type:'snow'},75:{label:'Heavy Snow',icon:'❄️',type:'snow'},80:{label:'Rain Showers',icon:'🌦️',type:'rain'},81:{label:'Moderate Showers',icon:'🌧️',type:'rain'},82:{label:'Violent Showers',icon:'⛈️',type:'rain'},95:{label:'Thunderstorm',icon:'⛈️',type:'rain'},96:{label:'Thunderstorm + Hail',icon:'⛈️',type:'rain'},99:{label:'Heavy Thunder + Hail',icon:'⛈️',type:'rain'}};
+const wmo=code=>WMO[code]||{label:'Unknown',icon:'🌡️',type:'clear'};
+const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const fmtDay=iso=>DAYS[new Date(iso).getDay()].toUpperCase();
+const windDir=deg=>['N','NE','E','SE','S','SW','W','NW'][Math.round(deg/45)%8];
+const uvLabel=uv=>uv<=2?'Low':uv<=5?'Moderate':uv<=7?'High':uv<=10?'Very High':'Extreme';
+const fmtTime=iso=>new Date(iso).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+
+function render(data,city,country){
+  const c=data.current;const d=data.daily;const w=wmo(c.weather_code);wType=w.type;
+  const uvIdx=d.uv_index_max[0]||0;const uvPct=Math.min(uvIdx/11*100,100).toFixed(0);
+  const vis=Math.round((c.visibility||10000)/1000);
+  const forecastRows=d.time.slice(1,6).map((t,i)=>{const fw=wmo(d.weather_code_max[i+1]);return`<div class="forecast-row"><span class="fc-day">${fmtDay(t)}</span><span class="fc-icon">${fw.icon}</span><span class="fc-desc">${fw.label}</span><span class="fc-temps"><span class="fc-hi">${Math.round(d.temperature_2m_max[i+1])}°</span><span class="fc-lo">${Math.round(d.temperature_2m_min[i+1])}°</span></span></div>`}).join('');
+  document.getElementById('main-content').innerHTML=`
+    <div class="hero-card fade-in">
+      <div>
+        <p class="hero-location">▸ ${city}, ${country}</p>
+        <h1 class="hero-city">${city}</h1>
+        <p class="hero-condition">${w.label}</p>
+        <div class="hero-meta">
+          <div><span class="meta-val">${c.relative_humidity_2m}%</span><span class="meta-key">Humidity</span></div>
+          <div><span class="meta-val">${c.wind_speed_10m} km/h ${windDir(c.wind_direction_10m)}</span><span class="meta-key">Wind</span></div>
+          <div><span class="meta-val">${c.surface_pressure} hPa</span><span class="meta-key">Pressure</span></div>
+          <div><span class="meta-val">${c.precipitation} mm</span><span class="meta-key">Precipitation</span></div>
+        </div>
+        <div class="azure-badge"><span class="azure-dot"></span>Hosted on Azure Blob Storage</div>
+      </div>
+      <div class="hero-temp-block">
+        <span class="weather-icon">${w.icon}</span>
+        <div class="hero-temp">${Math.round(c.temperature_2m)}<sup>°C</sup></div>
+        <p class="hero-feels">Feels like ${Math.round(c.apparent_temperature)}°C</p>
+      </div>
+    </div>
+    <div class="stats-grid fade-in-2">
+      <div class="stat-card"><span class="stat-icon">💧</span><div class="stat-val">${c.relative_humidity_2m}<span class="stat-unit">%</span></div><span class="stat-label">Relative Humidity</span></div>
+      <div class="stat-card"><span class="stat-icon">💨</span><div class="stat-val">${c.wind_speed_10m}<span class="stat-unit"> km/h</span></div><span class="stat-label">Wind Speed</span></div>
+      <div class="stat-card"><span class="stat-icon">🌡️</span><div class="stat-val">${c.surface_pressure}<span class="stat-unit"> hPa</span></div><span class="stat-label">Air Pressure</span></div>
+      <div class="stat-card"><span class="stat-icon">👁️</span><div class="stat-val">${vis}<span class="stat-unit"> km</span></div><span class="stat-label">Visibility</span></div>
+    </div>
+    <div class="bottom-grid">
+      <div class="panel fade-in-3">
+        <p class="panel-title">▸ 5-Day Forecast</p>
+        ${forecastRows}
+      </div>
+      <div class="panel fade-in-4">
+        <p class="panel-title">▸ Sun & Atmosphere</p>
+        <div class="sun-row"><span class="sun-label">🌅  Sunrise</span><span class="sun-val">${fmtTime(d.sunrise[0])}</span></div>
+        <div class="sun-row"><span class="sun-label">🌇  Sunset</span><span class="sun-val">${fmtTime(d.sunset[0])}</span></div>
+        <div class="sun-row"><span class="sun-label">🌤️  Today High</span><span class="sun-val">${Math.round(d.temperature_2m_max[0])}°C</span></div>
+        <div class="sun-row"><span class="sun-label">🌙  Tonight Low</span><span class="sun-val">${Math.round(d.temperature_2m_min[0])}°C</span></div>
+        <div class="sun-row"><span class="sun-label">☀️  UV Index</span><span class="sun-val">${uvIdx.toFixed(1)} <span style="font-size:.7rem;color:var(--amber);font-family:'IBM Plex Mono',monospace">${uvLabel(uvIdx)}</span></span></div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${uvPct}%"></div></div>
+        <div class="bar-labels"><span class="bar-label">Low</span><span class="bar-label">Moderate</span><span class="bar-label">Extreme</span></div>
+        <div class="sun-row" style="margin-top:1.2rem"><span class="sun-label">🌧️  Rain Probability</span><span class="sun-val">${d.precipitation_probability_max[0]}%</span></div>
+        <div class="sun-row"><span class="sun-label">💨  Max Wind Gust</span><span class="sun-val">${Math.round(d.wind_gusts_10m_max[0])} km/h</span></div>
+      </div>
+    </div>`;
+}
+
+async function fetchWeather(lat,lon,city,country){
+  document.getElementById('main-content').innerHTML='<div class="state-msg"><div class="spinner"></div><br/>Loading weather data...</div>';
+  try{
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,visibility&daily=weather_code_max,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,wind_gusts_10m_max&wind_speed_unit=kmh&timezone=auto&forecast_days=6`;
+    const data=await(await fetch(url)).json();
+    render(data,city,country);
+  }catch{document.getElementById('main-content').innerHTML='<div class="state-msg">⚠ Could not load weather data. Check your connection and try again.</div>'}
+}
+
+async function searchCity(){
+  const q=document.getElementById('city-input').value.trim();if(!q)return;
+  document.getElementById('main-content').innerHTML=`<div class="state-msg"><div class="spinner"></div><br/>Locating "${q}"...</div>`;
+  try{
+    const geo=await(await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=en&format=json`)).json();
+    if(!geo.results?.length){document.getElementById('main-content').innerHTML=`<div class="state-msg">⚠ City not found: "${q}"<br/>Try a different spelling or include the country name.</div>`;return}
+    const{latitude,longitude,name,country}=geo.results[0];
+    fetchWeather(latitude,longitude,name,country);
+  }catch{document.getElementById('main-content').innerHTML='<div class="state-msg">⚠ Search failed. Please try again.</div>'}
+}
+
+document.getElementById('city-input').addEventListener('keydown',e=>{if(e.key==='Enter')searchCity()});
+
+if(navigator.geolocation){
+  navigator.geolocation.getCurrentPosition(
+    async({coords:{latitude,longitude}})=>{
+      try{const rev=await(await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`)).json();const city=rev.address.city||rev.address.town||rev.address.village||'Your Location';const country=rev.address.country_code?.toUpperCase()||'';fetchWeather(latitude,longitude,city,country)}
+      catch{fetchWeather(latitude,longitude,'Your Location','')}
+    },
+    ()=>fetchWeather(6.5244,3.3792,'Lagos','NG')
+  );
+}else{fetchWeather(6.5244,3.3792,'Lagos','NG')}
+</script>
+</body>
+</html>
+< ! - -   d e p l o y e d   0 3 / 0 5 / 2 0 2 6   1 2 : 5 6 : 1 3   - - >  
+ 
