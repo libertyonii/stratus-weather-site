@@ -152,7 +152,7 @@ function render(data,city,country){
   const c=data.current;const d=data.daily;const w=wmo(c.weather_code);wType=w.type;
   const uvIdx=d.uv_index_max[0]||0;const uvPct=Math.min(uvIdx/11*100,100).toFixed(0);
   const vis=Math.round((c.visibility||10000)/1000);
-  const forecastRows=d.time.slice(1,6).map((t,i)=>{const fw=wmo(d.weather_code_max[i+1]);return`<div class="forecast-row"><span class="fc-day">${fmtDay(t)}</span><span class="fc-icon">${fw.icon}</span><span class="fc-desc">${fw.label}</span><span class="fc-temps"><span class="fc-hi">${Math.round(d.temperature_2m_max[i+1])}°</span><span class="fc-lo">${Math.round(d.temperature_2m_min[i+1])}°</span></span></div>`}).join('');
+  const forecastRows=d.time.slice(1,6).map((t,i)=>{const fw=wmo(d.weathercode[i+1]);return`<div class="forecast-row"><span class="fc-day">${fmtDay(t)}</span><span class="fc-icon">${fw.icon}</span><span class="fc-desc">${fw.label}</span><span class="fc-temps"><span class="fc-hi">${Math.round(d.temperature_2m_max[i+1])}°</span><span class="fc-lo">${Math.round(d.temperature_2m_min[i+1])}°</span></span></div>`}).join('');
   document.getElementById('main-content').innerHTML=`
     <div class="hero-card fade-in">
       <div>
@@ -202,7 +202,7 @@ function render(data,city,country){
 async function fetchWeather(lat,lon,city,country){
   document.getElementById('main-content').innerHTML='<div class="state-msg"><div class="spinner"></div><br/>Loading weather data...</div>';
   try{
-    const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,visibility&daily=weather_code_max,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,wind_gusts_10m_max&wind_speed_unit=kmh&timezone=auto&forecast_days=6`;
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,visibility&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,wind_gusts_10m_max&wind_speed_unit=kmh&timezone=auto&forecast_days=6`;
     const data=await(await fetch(url)).json();
     render(data,city,country);
   }catch{document.getElementById('main-content').innerHTML='<div class="state-msg">⚠ Could not load weather data. Check your connection and try again.</div>'}
@@ -233,5 +233,3 @@ if(navigator.geolocation){
 </script>
 </body>
 </html>
-< ! - -   d e p l o y e d   0 3 / 0 5 / 2 0 2 6   1 2 : 5 6 : 1 3   - - >  
- 
