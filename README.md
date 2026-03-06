@@ -508,6 +508,4 @@ Navigate to `https://stratusstorageweb.z1.web.core.windows.net/nonexistent` to s
 
 ---
 
-## 📄 License
-
-MIT — free to use, modify, and deploy.
+free to use, modify, and deploy.
