@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Aurora Studio — Azure Static Website Provisioning & Deployment Script
+# Stratus Weather — Azure Static Website Provisioning & Deployment Script
 # =============================================================================
 # Usage:
 #   chmod +x provision-and-deploy.sh
@@ -24,9 +24,9 @@ error()   { echo -e "${RED}[ERROR]${RESET} $*" >&2; exit 1; }
 header()  { echo -e "\n${BOLD}${CYAN}══ $* ══${RESET}\n"; }
 
 # ── Configuration — edit these ────────────────────────────────────────────────
-RESOURCE_GROUP="aurora-static-site-rg"
-LOCATION="eastus"                          # az account list-locations -o table
-STORAGE_ACCOUNT="aurorastudio$(date +%s | tail -c 6)"  # must be globally unique, 3-24 lower-alphanum
+RESOURCE_GROUP="stratus-static-site-rg"
+LOCATION="southafricanorth"                          # az account list-locations -o table
+STORAGE_ACCOUNT="stratusweather$(date +%s | tail -c 6)"  # must be globally unique, 3-24 lower-alphanum
 SKU="Standard_LRS"                         # Locally-redundant storage (cheapest)
 WEBSITE_DIR="$(cd "$(dirname "$0")/../website" && pwd)"
 INDEX_DOC="index.html"
