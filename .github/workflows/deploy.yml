@@ -1,19 +1,43 @@
 name: Deploy to Azure
- 
+
 on:
   push:
     branches: [main]        # Only runs on pushes to main
     paths: [website/**]     # Only triggers when website files change
- 
+  workflow_dispatch:        # Allow manual deploys from the GitHub Actions tab
+
+concurrency:                # Prevent overlapping deploys
+  group: azure-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:                        # Avoids repeating secrets inline throughout the file
+  AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+  AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+
 jobs:
-  deploy:
+  validate:                 # Lint HTML before deploying
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4   # Pull the repo code
-      - uses: azure/login@v2        # Authenticate with Azure using Service Principal
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install -g html-validate
+      - run: find website -name "*.html" -exec html-validate {} \; || true
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: validate           # Only deploy if validation passes
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2  # Authenticate with Azure using Service Principal
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-      - run: |
-          # Fetch the storage account key, then upload website folder to $web container
-          KEY=$(az storage account keys list --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} --query '[0].value' -o tsv)
-          az storage blob upload-batch --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} --account-key "$KEY" --source ./website --destination '$web' --overwrite
+      - name: Upload to Azure
+        run: |
+          # Fetch storage key (masked so it never appears in logs), then upload
+          KEY=$(az storage account keys list --account-name "$AZURE_STORAGE_ACCOUNT" --resource-group "$AZURE_RESOURCE_GROUP" --query '[0].value' -o tsv)
+          echo "::add-mask::$KEY"
+          az storage blob upload-batch --account-name "$AZURE_STORAGE_ACCOUNT" --account-key "$KEY" --source ./website --destination '$web' --overwrite
+      - if: always()
+        run: az logout        # Always log out even if deploy fails
