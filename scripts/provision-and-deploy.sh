@@ -65,5 +65,5 @@ URL=$(az storage account show \
   --query "primaryEndpoints.web" -o tsv)
 
 echo "✅ Stratus is live: $URL"
-echo "   Storage Account: $STORAGE_ACCOUNT (save this as your GitHub Actions secret)"
+echo "   Storage Account: $STORAGE_ACCOUNT"
 echo "   To tear down: ./provision-and-deploy.sh --destroy"
