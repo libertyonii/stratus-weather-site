@@ -1,154 +1,19 @@
-name: Deploy Stratus to Azure Static Website
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Triggers:
-#   • Push to `main` when website files change → full deploy
-#   • Manual trigger via Actions tab (workflow_dispatch)
-# ─────────────────────────────────────────────────────────────────────────────
+name: Deploy to Azure
+ 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - "website/**"          # Only run when site files actually change
-      - ".github/workflows/deploy.yml"
-  workflow_dispatch:          # Allow manual deploys from the GitHub UI
-    inputs:
-      purge_cache:
-        description: "Purge CDN cache after deploy? (yes/no)"
-        required: false
-        default: "no"
-
-# Prevent overlapping deploys
-concurrency:
-  group: azure-deploy-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}   # e.g. aurorastudio123456
-  AZURE_RESOURCE_GROUP:  ${{ secrets.AZURE_RESOURCE_GROUP }}    # e.g. aurora-static-site-rg
-
+    branches: [main]        # Only runs on pushes to main
+    paths: [website/**]     # Only triggers when website files change
+ 
 jobs:
-  # ── Job 1: Lint & validate HTML ─────────────────────────────────────────────
-  validate:
-    name: 🔍 Validate HTML
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install html-validate
-        run: npm install -g html-validate
-
-      - name: Run HTML validation
-        run: |
-          echo "Validating HTML files..."
-          find website -name "*.html" -exec html-validate {} \; || true
-          echo "HTML validation complete."
-
-  # ── Job 2: Deploy to Azure ───────────────────────────────────────────────────
   deploy:
-    name: Deploy to Azure Blob Storage
     runs-on: ubuntu-latest
-    needs: validate        # Only deploy if validation passes
-    environment:
-      name: production
-      url: ${{ steps.get-url.outputs.site_url }}
-
     steps:
-      # 1. Get the code
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # 2. Log in to Azure using a Service Principal stored as a secret
-      #    Secret format (JSON):
-      #    {
-      #      "clientId": "...",
-      #      "clientSecret": "...",
-      #      "subscriptionId": "...",
-      #      "tenantId": "..."
-      #    }
-      #    Generate with:
-      #    az ad sp create-for-rbac --name "aurora-github-actions" \
-      #      --role "Storage Blob Data Contributor" \
-      #      --scopes /subscriptions/<SUB_ID>/resourceGroups/<RG> \
-      #      --sdk-auth
-      - name: Azure Login
-        uses: azure/login@v2
+      - uses: actions/checkout@v4   # Pull the repo code
+      - uses: azure/login@v2        # Authenticate with Azure using Service Principal
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      # 3. Retrieve the storage account key so we can upload blobs
-      - name: Get Storage Account Key
-        id: storage-key
-        run: |
-          KEY=$(az storage account keys list \
-            --account-name "$AZURE_STORAGE_ACCOUNT" \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --query "[0].value" -o tsv)
-          echo "::add-mask::$KEY"
-          echo "key=$KEY" >> "$GITHUB_OUTPUT"
-
-      # 4. Upload all website files to the $web container
-      - name: Upload website files
-        run: |
-          echo "📦 Uploading website files to Azure Blob Storage..."
-          az storage blob upload-batch \
-            --account-name "$AZURE_STORAGE_ACCOUNT" \
-            --account-key "${{ steps.storage-key.outputs.key }}" \
-            --source "./website" \
-            --destination '$web' \
-            --overwrite \
-            --content-cache-control "public, max-age=3600" \
-            --output table
-          echo "✅ Upload complete."
-
-      # 5. Retrieve and expose the live URL
-      - name: Get site URL
-        id: get-url
-        run: |
-          URL=$(az storage account show \
-            --name "$AZURE_STORAGE_ACCOUNT" \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --query "primaryEndpoints.web" -o tsv)
-          echo "site_url=$URL" >> "$GITHUB_OUTPUT"
-          echo "🌐 Site live at: $URL"
-
-      # 6. (Optional) Purge Azure CDN cache if the input flag is set
-      - name: Purge CDN cache
-        if: github.event.inputs.purge_cache == 'yes'
-        run: |
-          echo "Purging CDN cache (configure CDN profile/endpoint names as needed)..."
-          # az cdn endpoint purge \
-          #   --resource-group "$AZURE_RESOURCE_GROUP" \
-          #   --profile-name "aurora-cdn-profile" \
-          #   --name "aurora-cdn-endpoint" \
-          #   --content-paths "/*"
-          echo "CDN purge step — enable by uncommenting the az cdn command above."
-
-      # 7. Post a summary to the GitHub Actions run summary page
-      - name: Write deployment summary
-        run: |
-          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## 🌌 Aurora Deployment Summary
-
-          | Field            | Value                                   |
-          |------------------|-----------------------------------------|
-          | **Status**       | ✅ Success                              |
-          | **Branch**       | \`${{ github.ref_name }}\`              |
-          | **Commit**       | \`${{ github.sha }}\`                   |
-          | **Triggered by** | @${{ github.actor }}                    |
-          | **Storage**      | \`$AZURE_STORAGE_ACCOUNT\`              |
-          | **Live URL**     | ${{ steps.get-url.outputs.site_url }}   |
-
-          EOF
-
-      # 8. Logout for security hygiene
-      - name: Azure Logout
-        if: always()
-        run: az logout
+      - run: |
+          # Fetch the storage account key, then upload website folder to $web container
+          KEY=$(az storage account keys list --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} --query '[0].value' -o tsv)
+          az storage blob upload-batch --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} --account-key "$KEY" --source ./website --destination '$web' --overwrite
