@@ -1,4 +1,4 @@
-name: Deploy to Azure
+name: Deploy Stratus to Azure
 
 on:
   push:
